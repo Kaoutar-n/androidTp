@@ -3,14 +3,14 @@ package com.example.myapplication1;
 import android.graphics.Bitmap;
 
 public class Etudiant {
-    private Integer id ;
+    private Integer id;
     private String Nom;
     private String Prénom;
-    private String classe ;
+    private String classe;
     private String phone;
     private Bitmap photo;
 
-    public Etudiant(Integer id, String nom, String prénom, String classe, Bitmap photo,String phone) {
+    public Etudiant(Integer id, String nom, String prénom, String classe, Bitmap photo, String phone) {
         this.id = id;
         this.Nom = nom;
         this.Prénom = prénom;
@@ -30,11 +30,13 @@ public class Etudiant {
     public String getNom() {
         return Nom;
     }
+
     public String getPhone() {
         return phone;
     }
-    public void setPhone() {
-         this.phone=phone;
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public void setNom(String nom) {
@@ -57,10 +59,10 @@ public class Etudiant {
         this.classe = classe;
     }
 
-
     public Bitmap getPhoto() {
         return photo;
     }
+
     public void setPhoto(Bitmap photo) {
         this.photo = photo;
     }

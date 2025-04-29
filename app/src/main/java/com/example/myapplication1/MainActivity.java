@@ -6,7 +6,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -14,6 +13,8 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.Request;
@@ -21,6 +22,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader;
 import com.android.volley.toolbox.JsonObjectRequest;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -34,15 +36,37 @@ public class MainActivity extends AppCompatActivity {
     private static final String HTTP_URL = "https://belatar.name/rest/profile.php?login=test&passwd=test&id=9998&notes=true";
     private static final String HTTP_FETCH_NOTES_URL = "https://belatar.name/rest/notes.php?login=test&passwd=test&student_id=";
     private static final String HTTP_IMAGES = "https://belatar.name/images/";
+    private static final int REQUEST_ADD_NOTE = 100;
+
     private Etudiant etd;
     private List<Note> notesList = new ArrayList<>();
     private NoteAdapter noteAdapter;
     private EditText txtNom, txtPrenom, txtClasse, txtRemarques;
+    private ListView listView;
+
+    // Activity result launcher for AddNoteActivity
+    private ActivityResultLauncher<Intent> addNoteLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
+
+        // Initialize NotesManager to load saved notes
+        NotesManager.initialize(this);
+
+        // Initialize the ActivityResultLauncher
+        addNoteLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK) {
+                        // Refresh notes if a note was added - keep both server and local notes
+                        if (etd != null) {
+                            fetchStudentNotes(etd.getId());
+                        }
+                    }
+                });
+
 
         // Set appropriate layout based on orientation
         int orientation = getResources().getConfiguration().orientation;
@@ -55,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
             txtClasse = findViewById(R.id.edit_classe);
 
             // Initialize the ListView and adapter in landscape mode
-            ListView listView = findViewById(R.id.notes_list);
+            listView = findViewById(R.id.notes_list);
             noteAdapter = new NoteAdapter(this, notesList);
             listView.setAdapter(noteAdapter);
 
@@ -78,6 +102,15 @@ public class MainActivity extends AppCompatActivity {
                 if (!hasFocus && etd != null) {
                     etd.setClasse(txtClasse.getText().toString());
                     fetchStudentNotes(etd.getId());
+                }
+            });
+
+            // Set up add note button click listener with proper error handling
+            FloatingActionButton fabAddNote = findViewById(R.id.fab_add_note);
+            fabAddNote.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    openAddNoteActivity();
                 }
             });
 
@@ -133,6 +166,24 @@ public class MainActivity extends AppCompatActivity {
         Log.d("CycleVie", "onCreate() appelé");
     }
 
+    private void openAddNoteActivity() {
+        try {
+            if (etd != null) {
+                Intent intent = new Intent(MainActivity.this, AddNoteActivity.class);
+                intent.putExtra("student_id", etd.getId());
+                intent.putExtra("student_name", etd.getNom() + " " + etd.getPrénom());
+
+                // Launch the activity with our registered launcher
+                addNoteLauncher.launch(intent);
+            } else {
+                Toast.makeText(this, "Données de l'étudiant non disponibles", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error launching AddNoteActivity: " + e.getMessage());
+            Toast.makeText(this, "Erreur lors de l'ouverture de l'activité d'ajout de note", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
@@ -172,9 +223,11 @@ public class MainActivity extends AppCompatActivity {
 
                                         @Override
                                         public void onResponse(ImageLoader.ImageContainer response, boolean isImmediate) {
-                                            etd.setPhoto(response.getBitmap());
-                                            ImageView img = findViewById(R.id.imageProfile);
-                                            img.setImageBitmap(etd.getPhoto());
+                                            if (response.getBitmap() != null) {
+                                                etd.setPhoto(response.getBitmap());
+                                                ImageView img = findViewById(R.id.imageProfile);
+                                                img.setImageBitmap(etd.getPhoto());
+                                            }
                                         }
                                     });
 
@@ -210,14 +263,11 @@ public class MainActivity extends AppCompatActivity {
         // Clear previous notes
         notesList.clear();
 
-        // Process each note in the array
-        for (int i = 0; i < notesArray.length(); i++) {
-            JSONObject noteObj = notesArray.getJSONObject(i);
-            String label = noteObj.getString("label");
-            double score = noteObj.getDouble("score");
+        // Update server notes in NotesManager
+        NotesManager.updateServerNotes(this, notesArray);
 
-            notesList.add(new Note(label, score));
-        }
+        // Add all notes (server + local) to the list
+        notesList.addAll(NotesManager.getAllNotes());
 
         // Update the adapter with new data
         if (noteAdapter != null) {
@@ -226,7 +276,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Method to fetch notes for a specific student
-    private void fetchStudentNotes(int studentId) {
+    public void fetchStudentNotes(int studentId) {
         String url = HTTP_FETCH_NOTES_URL + studentId;
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
@@ -234,26 +284,54 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(JSONObject response) {
                         try {
+                            // Clear the notes list before updating
+                            notesList.clear();
+
+                            // Process and save server notes
                             if (response.has("notes")) {
                                 JSONArray notesArray = response.getJSONArray("notes");
-                                processNotesArray(notesArray);
+                                // Update server notes in NotesManager
+                                NotesManager.updateServerNotes(MainActivity.this, notesArray);
+                            }
+
+                            // Get all notes (both server and local) and add to the list
+                            notesList.addAll(NotesManager.getAllNotes());
+
+                            // Update the adapter
+                            if (noteAdapter != null) {
+                                noteAdapter.notifyDataSetChanged();
                             }
                         } catch (JSONException e) {
                             Log.e(MainActivity.class.getSimpleName(), "JSON parsing error: " + e.getMessage());
-                            Toast.makeText(MainActivity.this, "Erreur lors du chargement des notes", Toast.LENGTH_SHORT).show();
+
+                            // In case of error, display all available notes
+                            notesList.clear();
+                            notesList.addAll(NotesManager.getAllNotes());
+                            if (noteAdapter != null) {
+                                noteAdapter.notifyDataSetChanged();
+                            }
+
+                            Toast.makeText(MainActivity.this, "Erreur lors du chargement des notes du serveur", Toast.LENGTH_SHORT).show();
                         }
                     }
                 }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Log.e(MainActivity.class.getSimpleName(), "Network error: " + error.getMessage());
-                Toast.makeText(MainActivity.this, "Erreur de connexion au serveur", Toast.LENGTH_SHORT).show();
+
+                // In case of connection error, display all available notes
+                notesList.clear();
+                notesList.addAll(NotesManager.getAllNotes());
+                if (noteAdapter != null) {
+                    noteAdapter.notifyDataSetChanged();
+                }
+
+                Toast.makeText(MainActivity.this, "Erreur de connexion au serveur - Affichage des notes disponibles uniquement", Toast.LENGTH_SHORT).show();
             }
         });
 
         VolleySingleton.getInstance(getApplicationContext()).addToRequestQueue(request);
     }
-
     @Override
     protected void onPause() {
         super.onPause();
@@ -288,4 +366,5 @@ public class MainActivity extends AppCompatActivity {
             Log.d("CycleVie", "Bouton Enregistrer cliqué");
         }
     }
+
 }
