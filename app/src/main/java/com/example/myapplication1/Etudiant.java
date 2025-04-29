@@ -30,6 +30,12 @@ public class Etudiant {
     public String getNom() {
         return Nom;
     }
+    public String getPhone() {
+        return phone;
+    }
+    public void setPhone() {
+         this.phone=phone;
+    }
 
     public void setNom(String nom) {
         Nom = nom;
@@ -51,10 +57,10 @@ public class Etudiant {
         this.classe = classe;
     }
 
+
     public Bitmap getPhoto() {
         return photo;
     }
-
     public void setPhoto(Bitmap photo) {
         this.photo = photo;
     }

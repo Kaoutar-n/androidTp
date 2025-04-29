@@ -14,15 +14,30 @@
         android:layout_weight="1"
         android:padding="16dp">
 
-        <ImageView
-            android:id="@+id/imageProfile"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:src="@mipmap/ic_launcher_round"
+        <FrameLayout
+            android:id="@+id/profile_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginTop="16dp"
-            android:layout_marginEnd="16dp" />
+            android:layout_marginEnd="16dp">
+
+            <ImageView
+                android:id="@+id/imageProfile"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:src="@mipmap/ic_launcher_round" />
+
+            <ImageButton
+                android:id="@+id/btn_call"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="bottom|end"
+                android:background="@drawable/circle_background"
+                android:src="@android:drawable/ic_menu_call"
+                android:contentDescription="Call student" />
+        </FrameLayout>
 
         <TextView
             android:id="@+id/label_nom"
@@ -31,7 +46,7 @@
             android:text="Nom :"
             android:textSize="16sp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@id/imageProfile"
+            app:layout_constraintTop_toTopOf="@id/profile_container"
             android:layout_marginStart="16dp" />
 
         <EditText
@@ -40,7 +55,7 @@
             android:layout_height="wrap_content"
             android:hint="Nom"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/imageProfile"
+            app:layout_constraintEnd_toStartOf="@id/profile_container"
             app:layout_constraintTop_toBottomOf="@id/label_nom"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
@@ -63,7 +78,7 @@
             android:layout_height="wrap_content"
             android:hint="Prénom"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/imageProfile"
+            app:layout_constraintEnd_toStartOf="@id/profile_container"
             app:layout_constraintTop_toBottomOf="@id/label_prenom"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
@@ -86,7 +101,7 @@
             android:layout_height="wrap_content"
             android:hint="Classe"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/imageProfile"
+            app:layout_constraintEnd_toStartOf="@id/profile_container"
             app:layout_constraintTop_toBottomOf="@id/label_classe"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
